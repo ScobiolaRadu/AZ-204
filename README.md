@@ -1,2 +1,2 @@
-# az-204-learn
-Labs from TeachSeat implementations to prepare for az-204 exam
+# Az-204
+Labs from TeachSeat implementations to prepare for Az-204 exam
