@@ -6,6 +6,9 @@ module.exports = async function (context, req) {
         ? "Hello, " + name + ". This HTTP triggered function executed successfully."
         : "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.";
 
+    context.log("Context Bindings", context.bindings.myInputBlob)
+    context.bindings.myOutputBlob = context.bindings.myInputBlob;
+    
     context.res = {
         // status: 200, /* Defaults to 200 */
         body: responseMessage
