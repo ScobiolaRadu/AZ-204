@@ -1,0 +1,170 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "testType": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "allowedValues": [
+                "Standard_LRS",
+                "Standard_ZRS",
+                "Standard_GRS",
+                "Standard_RAGRS",
+                "Premium_LRS"
+            ]
+        },
+        "testName": {
+            "type": "string",
+            "minLength": 1
+        },
+        "testAdminUserName": {
+            "type": "string",
+            "minLength": 1
+        },
+        "testAdminPassword": {
+            "type": "securestring"
+        },
+        "testUbuntuOSVersion": {
+            "type": "string",
+            "defaultValue": "14.04.2-LTS",
+            "allowedValues": [
+                "12.04.5-LTS",
+                "14.04.2-LTS",
+                "15.04"
+            ]
+        }
+    },
+    "resources": [
+        {
+            "name": "[variables('testName')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [],
+            "tags": {
+                "displayName": "test"
+            },
+            "properties": {
+                "accountType": "[parameters('testType')]"
+            }
+        },
+        {
+            "name": "test",
+            "type": "Microsoft.Network/virtualNetworks",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [],
+            "tags": {
+                "displayName": "test"
+            },
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('testPrefix')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('testSubnet1Name')]",
+                        "properties": {
+                            "addressPrefix": "[variables('testSubnet1Prefix')]"
+                        }
+                    },
+                    {
+                        "name": "[variables('testSubnet2Name')]",
+                        "properties": {
+                            "addressPrefix": "[variables('testSubnet2Prefix')]"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[variables('testNicName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [
+                "[concat('Microsoft.Network/virtualNetworks/', 'test')]"
+            ],
+            "tags": {
+                "displayName": "testNic"
+            },
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[variables('testSubnetRef')]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[parameters('testName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', variables('testName'))]",
+                "[concat('Microsoft.Network/networkInterfaces/', variables('testNicName'))]"
+            ],
+            "tags": {
+                "displayName": "test"
+            },
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('testVmSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('testName')]",
+                    "adminUsername": "[parameters('testAdminUsername')]",
+                    "adminPassword": "[parameters('testAdminPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('testImagePublisher')]",
+                        "offer": "[variables('testImageOffer')]",
+                        "sku": "[parameters('testUbuntuOSVersion')]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "testOSDisk",
+                        "vhd": {
+                            "uri": "[concat('http://', variables('testName'), '.blob.core.windows.net/', variables('testStorageAccountContainerName'), '/', variables('testOSDiskName'), '.vhd')]"
+                        },
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('testNicName'))]"
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "variables": {
+        "testName": "[concat('test', uniqueString(resourceGroup().id))]",
+        "testPrefix": "10.0.0.0/16",
+        "testSubnet1Name": "Subnet-1",
+        "testSubnet1Prefix": "10.0.0.0/24",
+        "testSubnet2Name": "Subnet-2",
+        "testSubnet2Prefix": "10.0.1.0/24",
+        "testImagePublisher": "Canonical",
+        "testImageOffer": "UbuntuServer",
+        "testOSDiskName": "testOSDisk",
+        "testVmSize": "Standard_B1ls",
+        "testVnetID": "[resourceId('Microsoft.Network/virtualNetworks', 'test')]",
+        "testSubnetRef": "[concat(variables('testVnetID'), '/subnets/', variables('testSubnet1Name'))]",
+        "testStorageAccountContainerName": "vhds",
+        "testNicName": "[concat(parameters('testName'), 'NetworkInterface')]"
+    }
+}
